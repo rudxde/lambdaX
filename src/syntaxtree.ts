@@ -13,22 +13,17 @@ export abstract class Expression {
 }
 
 export class LambdaFunction extends Expression {
-    isYFunction: boolean;
     constructor(
         public parameter: string,
         public value: Expression,
     ) {
         super();
-        this.isYFunction = this.parameter.startsWith('Y');
     }
     eval(): Expression {
-        if (this.parameter.startsWith('Y')) {
-            return new LambdaApplication(this.value, this.value).eval();
-        } else {
             const value = this.value.eval();
+        if (value === this.value) return this;
             return new LambdaFunction(this.parameter, value);
         }
-    }
     resolveNameConflicts(a: A): A {
         if (a.defined.indexOf(this.parameter) === -1) {
             const childResult = this.value.resolveNameConflicts({
@@ -61,7 +56,6 @@ export class LambdaFunction extends Expression {
 }
 
 export class LambdaApplication extends Expression {
-    static counter = 0;
     constructor(
         public left: Expression,
         public right: Expression,
@@ -69,21 +63,12 @@ export class LambdaApplication extends Expression {
         super();
     }
     eval(): Expression {
-        // console.log('evalAPP:' + this.toString());
-        const rightResult = this.right.eval();
-        const leftResult = this.left.eval();
-        if (leftResult instanceof LambdaFunction) {
-            // if (leftResult.isYFunction) {
-                // const newRecursive = new LambdaApplication(this.right, this.right).eval();
-                // console.log('new Recursive: ' + newRecursive.toString());
-                // return newRecursive;
-            // } else {
-                const replacedLeft = leftResult.value.replaceParameter(leftResult.parameter, rightResult);
-                const result = replacedLeft.eval();
+        if (this.left instanceof LambdaFunction) {
+            const replacedLeft = this.left.value.replaceParameter(this.left.parameter, this.right);
+            const result = replacedLeft;
                 return result;
-            // }
         } else {
-            return new LambdaApplication(leftResult, rightResult);
+            return new LambdaApplication(this.left.eval(), this.right.eval());
         }
     }
     resolveNameConflicts(a: A): A {
@@ -93,6 +78,7 @@ export class LambdaApplication extends Expression {
     replaceParameter(name: string, expression: Expression): Expression {
         const left = this.left.replaceParameter(name, expression);
         const right = this.right.replaceParameter(name, expression);
+        if (left == this.left && right === this.right) return this;
         return new LambdaApplication(left, right);
     }
     toString() {
